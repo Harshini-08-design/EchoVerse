@@ -1,0 +1,6 @@
+streamlit==1.28.1
+transformers==4.35.2
+torch==2.1.1
+gTTS==2.3.2
+protobuf==3.20.3
+deep-translator==1.11.4
