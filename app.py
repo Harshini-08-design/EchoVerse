@@ -260,17 +260,23 @@ DEFAULT_INSTRUCTIONS = {
     "Formal": "Rewrite the following text in a very formal, academic tone:"
 }
 
-# Load Hugging Face model for rewriting text
+# Load Hugging Face model for rewriting text (lazy loaded)
 @st.cache_resource
 def load_model():
-    return pipeline("text2text-generation", model="google/flan-t5-base")
+    with st.spinner("🔄 Loading AI model... This may take a minute on first run"):
+        return pipeline("text-generation", model="google/flan-t5-base")
 
-rewrite_model = load_model()
+rewrite_model = None  # Lazy load on first use
 
 # ----------------------------
 # Helper functions
 # ----------------------------
 def rewrite_text(text, tone, language="English"):
+    # Lazy load model on first use
+    global rewrite_model
+    if rewrite_model is None:
+        rewrite_model = load_model()
+    
     # Get the appropriate instruction based on language
     if language in TONE_INSTRUCTIONS and tone in TONE_INSTRUCTIONS[language]:
         instruction = TONE_INSTRUCTIONS[language][tone]
@@ -279,7 +285,19 @@ def rewrite_text(text, tone, language="English"):
     
     prompt = f"{instruction}\n\n{text}"
     result = rewrite_model(prompt, max_length=512, num_return_sequences=1)
-    return result[0]["generated_text"]
+    generated_text = result[0]["generated_text"]
+    
+    # Extract only the rewritten portion by removing instruction prefix
+    # Try to find where the instruction ends and the rewritten text begins
+    if instruction in generated_text:
+        rewritten = generated_text.split(instruction)[-1].strip()
+        # Also remove the original text if it's present at the beginning
+        if rewritten.startswith(text):
+            rewritten = rewritten[len(text):].strip()
+    else:
+        rewritten = generated_text.replace(prompt, "").strip()
+    
+    return rewritten if rewritten else generated_text
 
 def translate_text(text, target_lang):
     """Translate text to the target language"""
